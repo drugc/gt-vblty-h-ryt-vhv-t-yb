@@ -1,45 +1,80 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const cards = document.querySelectorAll('.card');
-    cards.forEach(card => {
-        card.addEventListener('mouseover', () => card.style.transform = 'scale(1.05)');
-        card.addEventListener('mouseout', () => card.style.transform = 'scale(1)');
-    });
+    if (window.matchMedia('(hover: hover)').matches) {
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorOutline = document.getElementById('cursor-dot-outline');
+        
+        document.body.classList.add('custom-cursor');
+        
+        let mouseX = -100;
+        let mouseY = -100;
+        let outlineX = -100;
+        let outlineY = -100;
+        let cursorVisible = false;
 
-    const moneyRain = document.getElementById('money-rain');
-    function createMoney() {
-        const money = document.createElement('div');
-        money.classList.add('money');
-        money.textContent = '$';
-        money.style.left = Math.random() * 100 + 'vw';
-        money.style.animationDuration = Math.random() * 3 + 5 + 's';
-        money.style.opacity = Math.random();
-        money.style.fontSize = Math.random() * 20 + 12 + 'px';
-        moneyRain.appendChild(money);
-        setTimeout(() => money.remove(), 5000);
+        const smoothing = 0.15;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            if (!cursorVisible) {
+                cursorVisible = true;
+                setTimeout(() => {
+                    cursorDot.classList.add('cursor-active');
+                    cursorOutline.classList.add('cursor-active');
+                }, 100);
+            }
+            
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%)`;
+        });
+
+        function animateCursor() {
+            outlineX += (mouseX - outlineX) * smoothing;
+            outlineY += (mouseY - outlineY) * smoothing;
+            
+            cursorOutline.style.transform = `translate(${outlineX}px, ${outlineY}px) translate(-50%, -50%)`;
+            
+            requestAnimationFrame(animateCursor);
+        }
+        
+        animateCursor();
+        
+        document.addEventListener('mouseout', (e) => {
+            if (e.relatedTarget === null) {
+                cursorDot.classList.remove('cursor-active');
+                cursorOutline.classList.remove('cursor-active');
+                cursorVisible = false;
+            }
+        });
+        
+        document.addEventListener('mousedown', () => {
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%) scale(0.75)`;
+            cursorOutline.style.transform = `translate(${outlineX}px, ${outlineY}px) translate(-50%, -50%) scale(0.75)`;
+        });
+        
+        document.addEventListener('mouseup', () => {
+            cursorDot.style.transform = `translate(${mouseX}px, ${mouseY}px) translate(-50%, -50%) scale(1)`;
+            cursorOutline.style.transform = `translate(${outlineX}px, ${outlineY}px) translate(-50%, -50%) scale(1)`;
+        });
+        
+        const interactiveElements = document.querySelectorAll('a, button, .button, input, .skill-card, .project-card, .service-card');
+        
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseover', () => {
+                cursorDot.style.width = '12px';
+                cursorDot.style.height = '12px';
+                cursorOutline.style.width = '60px';
+                cursorOutline.style.height = '60px';
+                cursorOutline.style.borderColor = 'rgba(0, 112, 243, 0.8)';
+            });
+            
+            el.addEventListener('mouseout', () => {
+                cursorDot.style.width = '8px';
+                cursorDot.style.height = '8px';
+                cursorOutline.style.width = '40px';
+                cursorOutline.style.height = '40px';
+                cursorOutline.style.borderColor = 'rgba(0, 112, 243, 0.5)';
+            });
+        });
     }
-    setInterval(createMoney, 100);
-
-    window.addEventListener('load', () => document.body.classList.add('loaded'));
-
-    const portfolioItems = document.querySelectorAll('.portfolio-item');
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) entry.target.classList.add('visible');
-        });
-    }, { threshold: 0.2 });
-    portfolioItems.forEach(item => observer.observe(item));
-
-    const modal = document.getElementById('modal');
-    const modalImg = document.getElementById('modal-img');
-    const closeModal = document.querySelector('.close');
-    document.querySelectorAll('.portfolio-image').forEach(img => {
-        img.addEventListener('click', () => {
-            modal.style.display = 'block';
-            modalImg.src = img.src;
-        });
-    });
-    closeModal.addEventListener('click', () => modal.style.display = 'none');
-    window.addEventListener('click', (e) => {
-        if (e.target === modal) modal.style.display = 'none';
-    });
 });
