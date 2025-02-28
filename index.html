@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fragment Username Checker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            color: #fff;
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .table-header {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .status-taken {
+            border: 2px solid #f97316; /* Orange */
+        }
+        .status-available {
+            border: 2px solid #22c55e; /* Green */
+        }
+        .status-sold {
+            border: 2px solid #ef4444; /* Red */
+        }
+        .status-unknown {
+            border: 2px solid #6b7280; /* Grey */
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .truncate {
+            max-width: 150px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-bold text-center mb-8">Fragment List Checker</h1>
+        <div class="glass p-6">
+            <textarea id="usernameInput" rows="4" class="w-full p-3 bg-transparent border border-gray-600 rounded-lg text-white placeholder-gray-400" placeholder="Enter usernames, one per line"></textarea>
+            <button id="checkButton" class="mt-4 w-full bg-blue-600 hover:bg-grey-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300 flex items-center justify-center">
+                <span id="buttonText">Check Usernames</span>
+                <div id="loadingSpinner" class="loader ml-2 hidden"></div>
+            </button>
+        </div>
+
+        <!-- Results Table -->
+        <div id="results" class="mt-8">
+            <div class="glass p-4">
+                <div class="grid grid-cols-5 gap-4 font-bold table-header p-2">
+                    <div>Username</div>
+                    <div>Price</div>
+                    <div>Status</div>
+                    <div>Buyer</div>
+                    <div>Link</div>
+                </div>
+                <div id="resultsBody" class="space-y-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Made by <a href="https://t.me/pisst" target="_blank" class="text-blue-400 hover:text-blue-300">t.me/pisst</a> | 
+        <a href="https://your-donation-link.com" target="_blank" class="text-blue-400 hover:text-blue-300">Donate Us</a>
+    </div>
+
+    <script>
+        document.getElementById('checkButton').addEventListener('click', async () => {
+            const usernames = document.getElementById('usernameInput').value.split('\n').map(u => u.trim()).filter(u => u);
+            if (usernames.length === 0) {
+                alert('Please enter at least one username.');
+                return;
+            }
+
+            // Show loading spinner and disable button
+            const button = document.getElementById('checkButton');
+            const buttonText = document.getElementById('buttonText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            button.disabled = true;
+            buttonText.textContent = 'Checking...';
+            loadingSpinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ usernames }),
+                });
+
+                const results = await response.json();
+                const resultsBody = document.getElementById('resultsBody');
+                resultsBody.innerHTML = '';
+
+                results.forEach(result => {
+                    const row = document.createElement('div');
+                    row.className = 'grid grid-cols-5 gap-4 p-2 hover:bg-gray-800 rounded-lg transition duration-300';
+
+                    if (result.error) {
+                        row.innerHTML = `
+                            <div>${result.username}</div>
+                            <div>N/A</div>
+                            <div class="text-red-400">${result.error}</div>
+                            <div></div>
+                            <div></div>
+                        `;
+                    } else {
+                        // Remove extra @ from username
+                        const username = result.username.startsWith('@') ? result.username.slice(1) : result.username;
+
+                        // Determine status border color
+                        let statusClass = '';
+                        if (result.status.toLowerCase().includes('taken')) {
+                            statusClass = 'status-taken';
+                        } else if (result.status.toLowerCase().includes('available') || result.status.toLowerCase().includes('auction')) {
+                            statusClass = 'status-available';
+                        } else if (result.status.toLowerCase().includes('sold')) {
+                            statusClass = 'status-sold';
+                        } else if (result.status.toLowerCase().includes('unknown')) {
+                            statusClass = 'status-unknown';
+                        }
+
+                        // Display N/D for price if status is unknown
+                        const price = result.status.toLowerCase().includes('unknown') ? 'N/D' : result.highest_bid;
+
+                        // Truncate buyer address if too long
+                        const buyer = result.buyer || 'N/A';
+                        const truncatedBuyer = buyer.length > 15 ? buyer.slice(0, 12) + '...' : buyer;
+
+                        // Link to Fragment page
+                        const fragmentUrl = `https://fragment.com/username/${username}`;
+
+                        row.innerHTML = `
+                            <div>@${username}</div>
+                            <div>${price} TON</div>
+                            <div class="p-2 rounded-lg ${statusClass}">${result.status}</div>
+                            <div class="truncate" title="${buyer}">${truncatedBuyer}</div>
+                            <div><a href="${fragmentUrl}" target="_blank" class="text-blue-400 hover:text-blue-300">Click</a></div>
+                        `;
+                    }
+                    resultsBody.appendChild(row);
+                });
+            } catch (error) {
+                alert('An error occurred while fetching data.');
+            } finally {
+                // Hide loading spinner and re-enable button
+                button.disabled = false;
+                buttonText.textContent = 'Check Usernames';
+                loadingSpinner.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
